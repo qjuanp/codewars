@@ -2,9 +2,10 @@ object Roman extends App {
 
   class Pipe(
               val roman:String,
-              val residue: Int,
-              val next: (Pipe) => String
-            )
+              val residue: Int
+            ) {
+      def apply(roman:String, residue:Int):Pipe = new Pipe(this.roman + roman, residue)
+    }
 
   val M: Int = 1000
   val D: Int = 500
@@ -14,47 +15,61 @@ object Roman extends App {
   val V: Int = 5
   val I: Int = 1
 
-  def numpart(arabic: Int, part: Int):Int = arabic - (arabic%part)
-
-  def prePart(part: Int) : Int =
-    part match {
-      case M => M-C
-      case D => D-C
-      case C => C-X
-      case L => L-X
-      case X => X-I
-      case V => V-I
-    }
-
+  def upperPart(number:Int, part:Int): Int = number - (number%part)
   def isPrePart(number:Int, part:Int, nextPart: Int): Boolean =
-    (number)%(part)==(4*nextPart)
+    ((number/part)*upperPart(number,nextPart)%part)==(4*nextPart)
 
+  def isDownPart(number:Int, part:Int, nextPart: Int): Boolean =
+    (upperPart(number,nextPart)%part)==(4*nextPart)
 
+  val encodeM = (pipe:Pipe) =>
+    pipe("M" * (pipe.residue/M), pipe.residue % M)
 
-  def encodeM(pipe: Pipe): String = pipe.next(new Pipe("M" * (pipe.residue/M), pipe.residue%M, encodeC))
-  def encodeD(pipe: Pipe): String =
-    if(isPrePart(pipe.residue,D,C))
-      pipe.next(new Pipe(pipe.roman + "CM", pipe.residue%D%C, encodeL))
+  val encodeD = (pipe:Pipe)=>
+    if(isPrePart(pipe.residue, D, C))
+      pipe("CM", pipe.residue % D % C)
+    else if (isDownPart(pipe.residue, D, C))
+      pipe("CD", pipe.residue % D % C)
     else
-      pipe.next(new Pipe(pipe.roman + "D" * (pipe.residue/D), pipe.residue%D, encodeL))
-  def encodeC(pipe: Pipe): String = pipe.next(new Pipe(pipe.roman + "C" * (pipe.residue/C), pipe.residue%C, encodeX))
-  def encodeL(pipe: Pipe): String = pipe.next(new Pipe(pipe.roman + "L" * (pipe.residue/L), pipe.residue%L, encodeV))
-  def encodeX(pipe: Pipe): String = pipe.next(new Pipe(pipe.roman + "X" * (pipe.residue/X), pipe.residue%X, encodeI))
-  def encodeV(pipe: Pipe): String = pipe.next(new Pipe(pipe.roman + "V" * (pipe.residue/V), pipe.residue%V, done))
-  def encodeI(pipe: Pipe): String = pipe.next(new Pipe(pipe.roman + "I" * (pipe.residue/I), pipe.residue%I, (pipe:Pipe)=>{""}))
-  def done(pipe: Pipe): String = pipe.roman
+      pipe("D" * (pipe.residue/D), pipe.residue % D)
 
-  def encodeFinal(arabic: Int): String = s"${arabic}"
+  val encodeC = (pipe:Pipe)=>
+    pipe("C" * (pipe.residue/C), pipe.residue % C)
 
-  def encode(arabic: Int): String = encodeM(new Pipe("", arabic, encodeD))
+  val encodeL = (pipe:Pipe)=>
+    if(isPrePart(pipe.residue, L, X))
+      pipe("XC", pipe.residue % L % X)
+    else if (isDownPart(pipe.residue, L, X))
+      pipe("XL", pipe.residue % L % X)
+    else
+      pipe("L" * (pipe.residue/L), pipe.residue % L)
 
-  println(s"2564 => ${encode(2564)}")
-  println(s"564 => ${encode(564)}")
-  println(s"4 => ${encode(4)}")
-  println(s"89 => ${encode(89)}") // "LXXXIX"
-  println(s"900 => ${encode(900)}") // "CM"
-  println(s"964 => ${encode(900)}") // "CM"
-  println(s"90 => ${encode(90)}") // "XC"
-  println(s"9 => ${encode(9)}") // "IX"
-  println(s"4 => ${encode(4)}") // "IV"
+  val encodeX = (pipe:Pipe)=>
+    pipe("X" * (pipe.residue/X), pipe.residue % X)
+
+  val encodeV = (pipe:Pipe)=>
+    if(isPrePart(pipe.residue, V, I))
+      pipe("IX", pipe.residue % V % I)
+    else if (isDownPart(pipe.residue, V, I))
+      pipe("IV", pipe.residue % V % I)
+    else
+      pipe("V" * (pipe.residue/V), pipe.residue % V)
+
+  val encodeI = (pipe:Pipe)=>
+    pipe("I" * (pipe.residue/I), pipe.residue % I)
+
+
+  val results = (pipe:Pipe)=> pipe.roman
+
+  def encode(arabic: Int): String =
+   (
+        encodeM andThen
+        encodeD andThen
+        encodeC andThen
+        encodeL andThen
+        encodeX andThen
+        encodeV andThen
+        encodeI andThen
+        results
+      )(new Pipe("",arabic))
 }
